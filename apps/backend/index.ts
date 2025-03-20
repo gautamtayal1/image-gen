@@ -1,10 +1,14 @@
 import express from "express"
 import {TrainModel, GenerateImage, GenerateImageFromPack} from "common/types"
 import prisma from "db"
-
+import {s3, write, S3Client} from "bun"
+import { FalAIModel } from "./models/FalAIModel"
+ 
 const USER_ID = "123"
 
 const PORT = process.env.PORT || 8080 
+
+const falAiClient = new FalAIModel()
 
 const app = express()
 app.use(express.json())
@@ -17,6 +21,8 @@ app.post("/ai/training", async(req,res) => {
     })
     return
   }
+  const {request_id, response_url} = await FalAIModel.trainModel("",parsedBody.data.name)
+
   const data = await prisma.model.create({
     data: {
       name: parsedBody.data.name,
@@ -25,7 +31,8 @@ app.post("/ai/training", async(req,res) => {
       ethinicity: parsedBody.data.ethinicity,
       eyeColor: parsedBody.data.eyeColor,
       bald: parsedBody.data.bald,
-      userId: USER_ID
+      userId: USER_ID,
+      falAiRequestId: request_id
     }
   })
   res.status(200).json({
@@ -40,12 +47,28 @@ app.post("/ai/generate", async(req,res) => {
     })
     return
   }
+
+  const model = await prisma.model.findUnique({
+    where: {
+      id: parsedBody.data.modelId
+    }
+  })
+
+  if(!model || !model.tensorPath) {
+    res.status(411).json({
+      message: "Model not found"
+    })
+    return
+  }
+
+  const {request_id, response_url} = await falAiClient.generateImage(parsedBody.data.prompt, model.tensorPath) 
   const data = await prisma.outputImages.create({
     data: {
       modelId: parsedBody.data.modelId,
       prompt: parsedBody.data.prompt,
       imageUrl: "",
-      userId: USER_ID
+      userId: USER_ID,
+      falAiRequestId: request_id
     }
   })
   res.status(200).json({
@@ -95,7 +118,40 @@ app.post("/image/bulk", async(req,res) => {
   })
   res.json({images: imagesData})
 })
+app.post("/fal-ai/webhook/train", async(req, res) => {
+  console.log(req.body)
+  const requestId = req.body.request_id
+  await prisma.model.updateMany({
+    where: {
+      falAiRequestId: requestId
+    },
+    data: {
+      trainingStatus: "Generated",
+      tensorPath: req.body.tensor_path 
+    }
+  })
+  res.json({
+    message: "webhook received"
+})
+})
+app.post("/fal-ai/webhook/image", async(req, res) => {
+  console.log(req.body)
+ 
+  const requestId = req.body.request_id
 
+  await prisma.outputImages.updateMany({
+    where: {
+      falAiRequestId: requestId
+    },
+    data: {
+      status: "Generated",
+      imageUrl: req.body.image_url
+    }
+  })
+  res.json({
+    message: "webhook received"
+  })
+})
 
 
 app.listen(PORT, () => {

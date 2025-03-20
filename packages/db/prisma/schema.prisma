@@ -22,7 +22,7 @@ model User {
 }
 
 model Model {
-  id             String           @id @default(uuid())
+  id             String                  @id @default(uuid())
   name           String
   type           ModelTypeEnum
   age            Int
@@ -30,10 +30,14 @@ model Model {
   eyeColor       EyeColorEnum
   bald           Boolean
   userId         String
+  triggerWord    String?
+  tensorPath     String?
+  trainingStatus ModelTrainingStatusEnum @default(Pending)
   trainingImages TrainingImages[]
   outputImages   OutputImages[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  falAiRequestId String
 }
 
 model TrainingImages {
@@ -44,15 +48,17 @@ model TrainingImages {
 }
 
 model OutputImages {
-  id        String   @id @default(uuid())
-  imageUrl  String   @default("")
-  modelId   String
-  prompt    String
-  status    OutputImageStatusEnum @default(Pending)
-  model     Model    @relation(fields: [modelId], references: [id])
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String                @id @default(uuid())
+  imageUrl       String                @default("")
+  modelId        String
+  prompt         String
+  falAiRequestId String?
+  status         OutputImageStatusEnum @default(Pending)
+  model          Model                 @relation(fields: [modelId], references: [id])
+  userId         String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  @@index([falAiRequestId])
 }
 
 model Packs {
@@ -82,8 +88,8 @@ enum EthinicityEnum {
   South_East_Asian @map("South East Asian")
   South_Asian      @map("South Asian")
   Middle_Eastern   @map("Middle Eastern")
-  Pacific          
-  Hispanic         
+  Pacific
+  Hispanic
 }
 
 enum EyeColorEnum {
@@ -94,6 +100,12 @@ enum EyeColorEnum {
 }
 
 enum OutputImageStatusEnum {
+  Pending
+  Generated
+  Failed
+}
+
+enum ModelTrainingStatusEnum {
   Pending
   Generated
   Failed
