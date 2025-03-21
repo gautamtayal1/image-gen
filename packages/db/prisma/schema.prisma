@@ -30,21 +30,14 @@ model Model {
   eyeColor       EyeColorEnum
   bald           Boolean
   userId         String
+  zipUrl         String?
   triggerWord    String?
   tensorPath     String?
   trainingStatus ModelTrainingStatusEnum @default(Pending)
-  trainingImages TrainingImages[]
   outputImages   OutputImages[]
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
   falAiRequestId String
-}
-
-model TrainingImages {
-  id       String @id @default(uuid())
-  imageUrl String
-  modelId  String
-  model    Model  @relation(fields: [modelId], references: [id])
 }
 
 model OutputImages {
